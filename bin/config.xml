@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+
+	<!--Year  Energy Start_runId Stop_runId Start_z_vertex Stop_z_vertex   75-80% 70-75% 65-70% 60-65% 55-60% 50-55% 45-50% 40-45% 35-40% 30-35% 25-30% 20-25% 15-20% 10-15% 5-10% 0-5% Normalize_stop  zpar0        zpar1         zpar2        zpar3         zpar4          zpar5           zpar6           zpar7       wpar0        wpar1        wpar2        wpar3         wpar4         wpar5         lpar0         lpar1
+	-->
+
+	<year>14</year>
+	<energy>14.5</energy>
+	<runRange min="15046106" max="15070021"/>
+	<!--<zVertex min="-70" max="70"/>
+	<zParameters>283.651, 0.216445, -0.0189286, 1.3983e-05, 7.04998e-06, -8.76975e-09, -7.03716e-10</zParameters>-->
+
+	<zVertex min="-40" max="40" />
+	<zParameters>281.975, -0.0929595, 0.0010799, 0.000845434, -3.37528e-05, -4.33716e-07, 1.93842e-08 </zParameters>
+	<bins></bins>
+
+</config>

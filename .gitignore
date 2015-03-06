@@ -1,0 +1,22 @@
+#Remove bulky root files
+*.root
+
+# Remove data files in the script folder used for testing 
+/script/*
+!/script/*.C
+
+#remove OS X system files
+*_*
+
+# Remove build files
+/src/*.o
+/src/calib
+
+#remove items in bin used for managing different jobs
+/bin/*.dat
+/bin/*.pdf
+/bin/*.xml
+/bin/old
+/bin/calib
+# but keep the sample config
+!/bin/config.xml
