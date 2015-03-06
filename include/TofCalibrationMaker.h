@@ -61,14 +61,24 @@ public:
 
 	void alignT0();
 
+	void FillTot();
+	//void slewing();
+
 	void FillZLocal();
 
 	void binTot();
+
+	static const int nTrays;
+	static const int nModules;
+	static const int nCells;
 
 protected:
 
 	int absIndex( int tray, int module = 1, int cell = 1 );
 	int relIndex( int tray, int module = 1, int cell = 1 );
+
+	void importZParams( string pFile );
+	void importTotParams( string totFile );
 
 	
 	
