@@ -1,7 +1,7 @@
 #include "TofCalibrationMaker.h"
 
 
-#include "TMath.h"
+
 #include <math.h>
 
 const int TofCalibrationMaker::nTrays = 120;
@@ -13,7 +13,9 @@ const int TofCalibrationMaker::nCells = 6;
  * Constructor
  * sets up the data source, config, logger
  */
-TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, string fileList, string jobPrefix ){
+TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, string fileList, string jobPrefix )
+    : cLight(29.9792458 /* [cm/ns] */), mPi( 0.13957 /* [GeV/c^2] */ )
+{
 
 	cfg = config;
 	nodePath = np;
@@ -94,6 +96,28 @@ TofCalibrationMaker::~TofCalibrationMaker(){
 }
 
 
+bool TofCalibrationMaker::keepEvent( ){
+    if ( 0 >= ds->getInt( "numberOfVpdEast" ) || 0 >= ds->getInt( "numberOfVpdWest" ) ) 
+        return false;
+    if ( ds->get( "vR" ) > 1.0 ) 
+        return false;
+    if ( TMath::Abs( ds->get( "vpdVz" )  - ds->get("vertexZ") ) > 6.0 ) 
+        return false;
+    return true;
+}
+bool TofCalibrationMaker::keepTrack( int iHit ){
+    double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+    double nSigPi = ds->get("nSigPi", iHit );
+
+    if ( 0.3 > p || 0.6 < p ) 
+        return false;
+    if ( nSigPi > 2.0 ) 
+        return false;
+    if ( 25 > ds->getInt( "nHitsFit", iHit ) ) 
+        return false;
+    return true;
+}
+
 void TofCalibrationMaker::make(){
 
     book->makeAll( "histograms" );
@@ -156,73 +180,48 @@ void TofCalibrationMaker::FillTot(  ){
         tp.showProgress( i );
 
         /**
-         * Select good events
+         * Select good events (should already be done in splitter )
          */
-        if ( 0 >= ds->getInt( "numberOfVpdEast" ) || 0 >= ds->getInt( "numberOfVpdWest" ) ) continue;
-        //if ( ds->get( "vR" ) > 1.0 ) continue;
-        if ( TMath::Abs( ds->get( "vpdVz" )  - ds->get("vertexZ") ) > 6.0 ) continue;
+        if ( !keepEvent() )
+            continue;
 
         int nTofHits = ds->getInt( "nTofHits" );
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
-            // Start
-            double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
-            double dEdx = ds->get("dedx", iHit );
+            if ( !keepTrack( iHit ) )
+                continue;
 
-            if ( 0.3 > p || 1.0 < p ) continue;
-            if ( p < 0.6 && dEdx > 2.8 ) continue;
-            if ( 25 < ds->getInt( "nHitsFit", iHit ) ) continue;
-
-            //cout << " ( " << ds->getInt( "tray", iHit ) << ", " << ds->getInt( "module", iHit ) << ", " << ds->getInt( "cell", iHit ) << " ) " << endl;
             int tray = ds->getInt( "tray", iHit );
             int module = ds->getInt( "module", iHit );
             int cell = ds->getInt( "cell", iHit );
             int id = relIndex( tray, module, cell );
 
-            if ( iteration == 0 ){
-                book->cd();
-                book->fill( "traysHit", tray );
-                book->fill( "modulesHit", module );
-                book->fill( "cellsHit", cell );
-                book->cd( "totStep_"+ts(iteration) );
-            }
-
             if ( id < 0 )
                 continue;
 
-
-            double tot = ds->get( "tot", iHit );
-            double tLength = ds->get( "length", iHit );
-            double M = 0.13957;
-            double bGamma = p / 0.13957; // pi mass in GeV / c^2
-            double velocity = TMath::Sqrt(1.0/(1.0/bGamma/bGamma+1.0))*c_light;
-            double piTof = tLength / velocity;
-            double tofExpected = TMath::Sqrt( tLength*tLength / (c_light*c_light) * ( 1 + M*M / (p*p) ) ); // in nanoseconds  
+            const double tLength = ds->get( "length", iHit );
+            const double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+            const double tofExp = expectedTof( tLength, p );
+            const double tot = ds->get( "tot", iHit );
+            
             double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
-            double corrTof = corrections[id]->tof( rawTof, tot, 0 );
-            rawTof = corrections[id]->tofForTot( rawTof, 0 ); // aplly all corrections except tot
+            double corrTof = corrections[id]->tof( rawTof, tot, 0 ); // all corrections
+            double tof = corrections[id]->tofForTot( rawTof, 0 ); // aplly all corrections except tot
             
 
-            double dt = rawTof - tofExpected;
-            double iBeta = (corrTof / tLength)*c_light;
-
+            double dt = tof - tofExp;
+            
+            //double iBeta = (corrTof / tLength)*c_light;
             // cut on the inverse beta curve
-            //if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) || iBeta < 1 ) ) continue;   
+            //if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) ) ) continue;   
 
             book->fill( "tot_" + ts(id), ds->get( "tot", iHit ), dt );
-            book->fill( "corrTot_" + ts(id), ds->get( "tot", iHit ), (corrTof - tofExpected) );
+            book->fill( "corrTot_" + ts(id), ds->get( "tot", iHit ), (corrTof - tofExp) );
 
         } // loop on tofHits
         
     } // end loop on events
     logger->info(__FUNCTION__) << "Completed in " << t.elapsed() << endl;
-
-
-
-    //reporter->newPage();
-    //book->style( "iBeta" )->set( "draw", "colz" )->draw();
-    //piBetaCut->Draw("same");
-    //reporter->savePage();
 
 
 }
@@ -363,27 +362,30 @@ void TofCalibrationMaker::alignT0(){
         return;
     }
 
-
     /**
      * Make histos
      */
     book->cd( "step_"+ts(iteration) );
-    book->clone( "/", "t0Tray", "step_"+ts(iteration), "t0Tray" );
-    book->clone( "/", "iBeta", "step_"+ts(iteration), "iBeta" );
+    //book->clone( "/", "t0Tray", "step_"+ts(iteration), "t0Tray" );
+    //book->clone( "/", "iBeta", "step_"+ts(iteration), "iBeta" );
 
-    book->make2D( "elementT0", "t0", nElements, -0.5, nElements-0.5, 200, -100, 100 );
-    if ( 0 < iteration )
-        book->make2D( "elementT0Corr", "corrected t0", nElements, -0.5, nElements-0.5, 200, -10, 10 );
+    if ( 0 == iteration )
+       book->make2D( "elementT0", "t0", nElements, -0.5, nElements-0.5, 200, -100, 100 ); // bin With = 1ns
+   else if ( 1 == iteration )
+        book->make2D( "elementT0", "t0", nElements, -0.5, nElements-0.5, 200, -10, 10 ); // bin Width = 0.1ns
+    else 
+        book->make2D( "elementT0", "t0", nElements, -0.5, nElements-0.5, 2000, -5, 5 ); // bin Width = 0.005ns
+    
+    //book->make2D( "elementT0Corr", "corrected t0", nElements, -0.5, nElements-0.5, 2000, -5, 5 ); // bin Width = .01ns
 
-    const Double_t c_light = 29.9792458;
+
+
+
     TF1 * piBetaCut = new TF1( "piBetaCut", "TMath::Sqrt([0]*[0]+x*x)/x",0,5);
     piBetaCut->SetParameter(0, 0.4 );
 
     TaskTimer t;
     t.start();
-
-    double globalT0 = 0;
-    double nPi = 0;
 
     Int_t nEvents = (Int_t)ds->getEntries();
     
@@ -406,19 +408,14 @@ void TofCalibrationMaker::alignT0(){
         /**
          * Select good events
          */
-        if ( 0 >= ds->getInt( "numberOfVpdEast" ) || 0 >= ds->getInt( "numberOfVpdWest" ) ) continue;
-        if ( ds->get( "vR" ) > 1.0 ) continue;
-        if ( TMath::Abs( ds->get( "vpdVz" )  - ds->get("vertexZ") ) > 6.0 ) continue;
+        if ( !keepEvent() )
+            continue;
 
         int nTofHits = ds->getInt( "nTofHits" );
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
-            double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
-            double dEdx = ds->get("dedx", iHit );
-
-            if ( 0.3 > p || 1.0 < p ) continue;
-            if ( p < 0.6 && dEdx > 2.8 ) continue;
-            if ( 25 < ds->getInt( "nHitsFit", iHit ) ) continue;
+            if ( !keepTrack( iHit ) )
+                continue;
 
             //cout << " ( " << ds->getInt( "tray", iHit ) << ", " << ds->getInt( "module", iHit ) << ", " << ds->getInt( "cell", iHit ) << " ) " << endl;
             int tray = ds->getInt( "tray", iHit );
@@ -428,36 +425,26 @@ void TofCalibrationMaker::alignT0(){
 
             if ( id < 0 )
                 continue;
-            //cout << " ID "<< id << endl;
-
-            //book->fill( "traysHit", tray );
-            //book->fill( "modulesHit", module );
-            //book->fill( "cellsHit", cell );
 
 
-            double tLength = ds->get( "length", iHit );
-            double M = 0.13957;
-            double bGamma = p / 0.13957; // pi mass in GeV / c^2
-            double velocity = TMath::Sqrt(1.0/(1.0/bGamma/bGamma+1.0))*c_light;
-            double piTof = tLength / velocity;
-            double tofExpected = TMath::Sqrt( tLength*tLength / (c_light*c_light) * ( 1 + M*M / (p*p) ) ); // in nanoseconds  
-            double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
-            //double rawTof = ds->get( "tofCorr", iHit );
 
-            double corrTof = corrections[id]->tof( rawTof, ds->get("tot", iHit), 0 );
-
-            double dt = corrTof - tofExpected;
-            double dtRaw = rawTof - tofExpected;
-            double iBeta = (corrTof / tLength)*c_light;
+            const double zLocal     = ds->get( "zLocal", iHit );
+            const double tLength    = ds->get( "length", iHit );
+            const double p          = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+            const double tofExp     = expectedTof( tLength, p );
+            const double tot        = ds->get( "tot", iHit );
+            
+            const double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
+            const double corrTof = corrections[id]->tof( rawTof, tot, 0 ); // all corrections
+            const double iBeta = ( corrTof / tLength ) * cLight;
+    
+            double dt = corrTof - tofExp;
 
             // cut on the inverse beta curve
-            if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) || iBeta < 1 ) ) continue;
+            if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) ) ) continue;
             
-            book->fill( "iBeta", p, iBeta );    
-            book->fill( "elementT0", id, dtRaw );
-            if ( 0 < iteration )
-                book->fill( "elementT0Corr", id, dt );
-
+            //book->fill( "iBeta", p, iBeta );    
+            book->fill( "elementT0", id, dt );
 
         } // loop on tofHits
     } // end loop on events
@@ -467,17 +454,11 @@ void TofCalibrationMaker::alignT0(){
     for ( int i = 0; i < nElements; i++ ){
         TH1D * hTmp = (TH1D*)hT0->ProjectionY( "_tmp", i+1, i+1 );
         double newT0 = hTmp->GetMean(1);
-
         hTmp->SetDirectory( 0 );
 
-        corrections[ i ]->setT0( newT0 );
+        double cT0 = corrections[ i ]->getT0();
+        corrections[ i ]->setT0( cT0 + newT0 );
     }
-
-
-
-    reporter->newPage();
-
-    reporter->savePage();
 
 }
 

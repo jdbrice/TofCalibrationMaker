@@ -6,18 +6,17 @@
 	<job>splitPicos</job>
 
 	<Logger>
-		<logLevel>info</logLevel>
+		<logLevel>debug</logLevel>
 	</Logger>
 
-	<output path="out/" />
+	<output path="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/slew/split/" />
+
 	<!-- tray, board, module, cell -->
 	<SplitBy>board</SplitBy>
 
-	<Trays min="1" max="60" />
+	<Trays min="1" max="1" />
 
-
-
-	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/test/">
+	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/slew/" maxFiles="-1">
 		<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
 	</DataSource>
 

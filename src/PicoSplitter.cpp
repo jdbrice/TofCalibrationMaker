@@ -202,8 +202,10 @@ void PicoSplitter::make(){
     		
     		book->fill( "trayHits", id );
 
-    		if ( id >= 0  )
+    		if ( id >= 0 && nHits[ id ] < kMaxHits )
     			addTrack( id, iHit );
+    		else if ( id >= 0 && nHits[ id ] >= kMaxHits )
+    			logger->debug(__FUNCTION__) << "Losing hit on ( " << tray << ", " << module << ", " << cell << " ) " << endl;
 
     	} // loop on tofHits
 

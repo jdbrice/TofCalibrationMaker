@@ -20,7 +20,16 @@ using namespace jdb;
 #include <memory>
 using namespace std;
 
+/**
+ * ROOT
+ */
+#include "TMath.h"
+
+/**
+ * Local
+ */
 #include "TofCorrection.h"
+
 
 
 class TofCalibrationMaker
@@ -52,6 +61,8 @@ protected:
 
 	int iteration;
 
+	const double cLight; //= 29.9792458 cm / ns
+	const double mPi; // pi mass = 0.13957 in GeV / c^2
 
 public:
 	TofCalibrationMaker( XmlConfig * config, string np, string fileList ="", string jobPrefix = "" );
@@ -79,6 +90,13 @@ protected:
 
 	void importZParams( string pFile );
 	void importTotParams( string totFile );
+
+	double expectedTof( double length, double p ){
+		return TMath::Sqrt( length*length / (cLight*cLight) * ( 1 + mPi*mPi / (p*p) ) );
+	}
+
+	bool keepEvent();
+	bool keepTrack( int iHit );
 
 	
 	

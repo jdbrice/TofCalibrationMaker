@@ -89,7 +89,7 @@ public:
 	void setZ( int bin, double val ){ if ( bin >= 0 && bin <= zCorrs.size() ) zCorrs[ bin ] = val; }
 
 	double getTot( int bin ) const { if ( bin >= 0 && bin < totCorrs.size() ) return totCorrs[ bin ]; }
-
+	double getT0( ) const { return t0; }
 
 	
 };
