@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- A root node is required -->
+<!--  It can be anything <root></root>, it just has to exist -->
+<config>
+	<job>splitPicos</job>
+
+	<Logger>
+		<logLevel>info</logLevel>
+	</Logger>
+
+	<output path="out/" />
+	<!-- tray, board, module, cell -->
+	<SplitBy>board</SplitBy>
+
+	<Trays min="1" max="60" />
+
+
+
+	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/test/">
+		<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
+	</DataSource>
+
+	<histograms>
+		<Histo name="trayHits" title="Tray Hits" widthX="1" minX="-0.5" maxX="119.5" />
+		<Histo name="ids" title="ids" nBinsX="1000" minX="-1" maxX="999" />
+		<Histo name="events" title="events" nBinsX="10" minX="0" maxX="10" />
+	</histograms>
+
+
+</config>

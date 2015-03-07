@@ -128,6 +128,7 @@ void TofCalibrationMaker::FillTot(  ){
     book->cd( "totStep_"+ts(iteration) );
     for ( int i = 0; i < nElements; i++ ){
         book->clone( "/", "dtVsTot", "totStep_"+ts(iteration), "tot_" + ts(i) );
+        book->clone( "/", "dtVsTot", "totStep_"+ts(iteration), "corrTot_" + ts(i) );
     }
 
     const Double_t c_light = 29.9792458;
@@ -198,8 +199,9 @@ void TofCalibrationMaker::FillTot(  ){
             double piTof = tLength / velocity;
             double tofExpected = TMath::Sqrt( tLength*tLength / (c_light*c_light) * ( 1 + M*M / (p*p) ) ); // in nanoseconds  
             double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
-            rawTof = corrections[id]->tofForTot( rawTof, 0 ); // aplly all corrections except tot
             double corrTof = corrections[id]->tof( rawTof, tot, 0 );
+            rawTof = corrections[id]->tofForTot( rawTof, 0 ); // aplly all corrections except tot
+            
 
             double dt = rawTof - tofExpected;
             double iBeta = (corrTof / tLength)*c_light;
@@ -208,6 +210,7 @@ void TofCalibrationMaker::FillTot(  ){
             //if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) || iBeta < 1 ) ) continue;   
 
             book->fill( "tot_" + ts(id), ds->get( "tot", iHit ), dt );
+            book->fill( "corrTot_" + ts(id), ds->get( "tot", iHit ), (corrTof - tofExpected) );
 
         } // loop on tofHits
         
