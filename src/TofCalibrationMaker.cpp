@@ -515,10 +515,17 @@ void TofCalibrationMaker::alignT0(){
     } // end loop on events
     logger->info(__FUNCTION__) << "Completed in " << t.elapsed() << endl;
 
+    
     TH2 * hT0 = book->get2D( "elementT0" );
     for ( int i = 0; i < nElements; i++ ){
         TH1D * hTmp = (TH1D*)hT0->ProjectionY( "_tmp", i+1, i+1 );
         double newT0 = hTmp->GetMean(1);
+        if ( iteration >= 2 ){
+            TF1 * gg = new TF1( "gaus", "gaus", -.25, .25 );
+            hTmp->Fit( gg, "QRN" );
+            newT0 = gg->GetParameter( 1 );    
+        }
+        
         hTmp->SetDirectory( 0 );
 
         double cT0 = corrections[ i ]->getT0();
