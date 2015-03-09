@@ -113,6 +113,20 @@ protected:
 	 */
 	void reportTot();
 	void reportZLocal();
+
+	string nameFor( int rID ){
+
+		vector<int> place = fromRelIndex( rID );
+		if ( "tray" == splitMode )
+			return "Tray "+ts(place[0]);
+		else if ( "board" == splitMode )
+			return "Tray "+ts(place[0]) + " Module " + ts( place[1] );
+		else if ( "module" == splitMode )
+			return "T"+ts(place[0]) + "M" + ts( place[1] );
+		else if ( "cell" == splitMode )
+			return "T"+ts(place[0]) + "M" + ts( place[1] )+ "C" + ts( place[2] );
+		return "unknown";
+	}
 	
 	
 };

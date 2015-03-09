@@ -104,6 +104,8 @@ public:
 	void setZ( int bin, double val ){ if ( bin >= 0 && bin <= zCorrs.size() ) zCorrs[ bin ] = val; }
 
 	double getTot( double tot, bool forceBin = false ) const { 
+		bool firstOrLast = (	totBins->findBin( tot ) == 0 || 
+							totBins->findBin( tot ) >= totBins->nBins()-1 );
 		if ( !useSplineForTot || NULL == totSpline || forceBin ){
 			if ( !forceBin ){
 				int bin = totBins->findBin( tot );
@@ -115,8 +117,13 @@ public:
 					return totCorrs[ bin ]; 
 			}
 		} else {
-
-			return totSpline->eval( tot );
+			if ( !firstOrLast )
+				return totSpline->eval( tot );
+			else { // splines arent garanteed to exist at the boundaries
+				int bin = totBins->findBin( tot );
+				if ( bin >= 0 && bin < totCorrs.size() ) 
+					return totCorrs[ bin ]; 
+			}
 		}
 		return 0;
 	}
@@ -150,22 +157,26 @@ public:
 
 		vector<double> x = totBins->getBins();
 		vector<double> y = totCorrs;
-		x.push_back( x[ x.size() - 1 ] );
-		y.push_back( y[ y.size() - 1 ] );
 
-		totSpline = ( new SplineMaker( x, y, Interpolation::Type::kLINEAR ) );
+		x.push_back( x[ x.size() - 1 ]+.1 );
+		y.push_back( y[ y.size() - 1 ] );
+		
+		totSpline = ( new SplineMaker( x, y, Interpolation::Type::kLINEAR) );
 	}
 
 	void updateZSpline() {
 		if ( zSpline )
 			delete zSpline;
 
+		
 		vector<double> x = zBins->getBins();
 		vector<double> y = zCorrs;
+
 		x.push_back( x[ x.size() - 1 ] );
 		y.push_back( y[ y.size() - 1 ] );
 
 		zSpline = ( new SplineMaker( x, y ) );
+		
 	}
 
 	

@@ -3,6 +3,11 @@
 #include <iostream>
 using namespace std;
 SplineMaker::SplineMaker( const vector< double > &x, const vector< double > &y, Interpolation::Type type ){
+	
+	/*for ( int i = 0; i < x.size(); i++ ){
+		cout << "x[" << i << " ] = " << x[i] << " => " << y[ i ] << endl;
+	}*/
+
 	spline = NULL;
 	spline = new Interpolator( x, y, type);
 
@@ -10,9 +15,7 @@ SplineMaker::SplineMaker( const vector< double > &x, const vector< double > &y, 
 	domainMax = x[ x.size() - 1 ];
 	//cout << "Domain : ( " << domainMin << ", " << domainMax << " ) " << endl;
 
-	/*for ( int i = 0; i < x.size(); i++ ){
-		cout << "x[" << i << " ] = " << x[i] << " => " << y[ i ] << endl;
-	}*/
+	
 
 }
 
@@ -82,7 +85,7 @@ TGraph * SplineMaker::graph( double xmin, double xmax, double step ){
 	if ( xmax > domainMax )
 		xmax = domainMax;
 
-   	const Int_t n = ( (xmax - xmin ) / step)  ;
+   	const Int_t n = ( (xmax - xmin ) / step) + 1 ;
    	Int_t i = 0;
    	Float_t xcoord[n], ycoord[n];
 

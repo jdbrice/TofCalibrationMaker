@@ -155,6 +155,7 @@ void TofCalibrationMaker::make(){
         iteration++;
     }
 
+    alignT0();
     inverseBeta();
 
     string eName = "t_" + ts( (int)trayRange->min ) + "_" + ts((int)trayRange->max) +
@@ -203,7 +204,7 @@ void TofCalibrationMaker::fillTot(  ){
     logger->info(__FUNCTION__) << "Loaded: " << nEventsToProcess << " events " << endl;
     
     TaskProgress tp( "Plotting Tot", nEventsToProcess );
-
+    logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
         ds->getEntry(i);
@@ -293,7 +294,7 @@ void TofCalibrationMaker::fillZLocal(  ){
     logger->info(__FUNCTION__) << "Loaded: " << nEventsToProcess << " events " << endl;
     
     TaskProgress tp( "Event Loop", nEventsToProcess );
-
+    logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
         ds->getEntry(i);
@@ -461,7 +462,7 @@ void TofCalibrationMaker::alignT0(){
     logger->info(__FUNCTION__) << "Loaded: " << nEventsToProcess << " events " << endl;
     
     TaskProgress tp( "T0 Alignment", nEventsToProcess );
-
+    logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
         ds->getEntry(i);
@@ -527,7 +528,10 @@ void TofCalibrationMaker::alignT0(){
 
     reporter->newPage();
 
-    book->style( "elementT0" )->set( "draw", "colz" )->set( "logz", 1 )->draw();
+    book->style( "elementT0" )->
+    set( "title", "T0 : " + nameFor( 0 ) + " -> " + nameFor( nElements-1 ) )->
+    set( "y", "#Delta TOF_{m} - TOF_{exp}")->
+    set( "draw", "colz" )->set( "logz", 1 )->draw();
 
     reporter->savePage();
 
@@ -566,7 +570,7 @@ void TofCalibrationMaker::inverseBeta(  ){
     logger->info(__FUNCTION__) << "Loaded: " << nEventsToProcess << " events " << endl;
     
     TaskProgress tp( "Plotting 1/beta", nEventsToProcess );
-
+    logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
         ds->getEntry(i);
@@ -608,7 +612,10 @@ void TofCalibrationMaker::inverseBeta(  ){
     logger->info(__FUNCTION__) << "Completed in " << t.elapsed() << endl;
 
     reporter->newPage( 1, 1 );
-    book->style( "inverseBeta" )->set( "draw", "colz" )->set( "logz", 1 )->draw();
+    book->style( "inverseBeta" )->
+    set( "title", "#beta^{-1} : " + nameFor( 0 ) + " -> " + nameFor( nElements-1 ) )->
+    set( "x", "p [GeV]" )->set( "y", "#beta^{-1}")->
+    set( "draw", "colz" )->set( "logz", 1 )->draw();
     reporter->savePage();
 }
 
@@ -854,23 +861,47 @@ void TofCalibrationMaker::makeBins( string var, int nBins, double min, double ma
 
 void TofCalibrationMaker::reportTot(){
 
+    logger->info(__FUNCTION__) << endl;
     gStyle->SetOptStat( 1111 );
     book->cd( "totStep_"+ts(iteration) );
     reporter->newPage( 4, 4);
     for ( int i = 0; i < nElements; i++ ){
-
-        double x1 = corrections[ i ]->getTotBins()->getBins()[ 0 ];
-        double x2 = corrections[ i ]->getTotBins()->getBins()[ corrections[ i ]->getTotBins()->nBins() ];
+        if ( !corrections[ i ]->getTotBins() )
+            continue;
+        //logger->info(__FUNCTION__) << corrections[ i ]->getTotBins()->nBins() << endl;
+        double x1 = corrections[ i ]->getTotBins()->getBins()[ 1 ];
+        double x2 = corrections[ i ]->getTotBins()->getBins()[ corrections[ i ]->getTotBins()->nBins() - 1 ];
         logger->info(__FUNCTION__) << "Graphing Spline From ( " << x1 << ", " << x2 << " ) " << endl;
-        book->style( "tot_"+ts(i) )->set( "draw", "colz" )->draw();
+        book->style( "tot_"+ts(i) )->
+            set( "draw", "colz" )->set( "title", nameFor( i ) )->
+            set( "x", "ToT [ns]")->set( "y", "#Delta TOF_{meas} - TOF_{exp}" )->
+            draw();
+        logger->info(__FUNCTION__) << "Updating Spline" << endl;
         corrections[ i ]->updateTotSpline();
-        TGraph * g = corrections[ i ]->getTotSpline()->graph( x1, x2+10, .1 );
+        TGraph * g = corrections[ i ]->getTotSpline()->graph( x1, x2, .5 );
         g->SetLineColor( kRed );
         g->Draw("same");
 
         reporter->next();
     }
     reporter->savePage();
+
+    /**
+     * Draw the corrected ones
+     */
+    if ( 1 <= iteration ){
+        reporter->newPage( 4, 4);
+        for ( int i = 0; i < nElements; i++ ){
+
+            book->style( "corrTot_"+ts(i) )->
+                set( "draw", "colz" )->set( "title",  nameFor( i ) + " : Corrected ToT" )->
+                set( "x", "ToT [ns]")->set( "y", "#Delta TOF_{meas} - TOF_{exp}" )->
+                draw();
+
+            reporter->next();
+        }
+        reporter->savePage();
+    }
 
 
 }
@@ -886,15 +917,35 @@ void TofCalibrationMaker::reportZLocal(){
         logger->info(__FUNCTION__) << "Graphing Spline From ( " << x1 << ", " << x2 << " ) " << endl;
         
         
-        book->style( "zLocal_"+ts(i) )->set( "draw", "colz" )->draw();
+        book->style( "zLocal_"+ts(i) )->
+            set( "draw", "colz" )->set( "title", nameFor( i ) )->
+            set( "x", "zLocal [cm]")->set( "y", "#Delta TOF_{meas} - TOF_{exp}" )->
+            draw();
         corrections[ i ]->updateTotSpline();
-        TGraph * g = corrections[ i ]->getZSpline()->graph( x1, x2+10, .1 );
+        TGraph * g = corrections[ i ]->getZSpline()->graph( x1, x2, .5 );
         g->SetLineColor( kRed );
         g->Draw("same");
         
         reporter->next();
     }
     reporter->savePage();
+
+    /**
+     * Draw the corrected ones
+     */
+    if ( 1 <= iteration ){
+        reporter->newPage( 4, 4);
+        for ( int i = 0; i < nElements; i++ ){
+
+            book->style( "corrZLocal_"+ts(i) )->
+                set( "draw", "colz" )->set( "title",  nameFor( i ) + " : Corrected zLocal" )->
+                set( "x", "zLocal [cm]")->set( "y", "#Delta TOF_{meas} - TOF_{exp}" )->
+                draw();
+
+            reporter->next();
+        }
+        reporter->savePage();
+    }
 
 
 }

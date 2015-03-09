@@ -12,6 +12,7 @@
 /src/*.o
 /src/calib
 
+/script
 #remove items in bin used for managing different jobs
 /bin/*.dat
 /bin/*.pdf
@@ -20,3 +21,4 @@
 /bin/calib
 # but keep the sample config
 !/bin/config.xml
+/bin/final

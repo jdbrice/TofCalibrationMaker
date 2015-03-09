@@ -1,5 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?>
+#!/usr/bin/python
 
+import sys
+
+print 'Number of arguments:', len(sys.argv), 'arguments.'
+print 'Argument List:', str(sys.argv)
+
+
+dataDir = sys.argv[ 1 ]
+
+
+template = """
+<?xml version="1.0" encoding="UTF-8"?>
 <!-- A root node is required -->
 <!--  It can be anything <root></root>, it just has to exist -->
 <config>
@@ -10,18 +21,18 @@
 	</Logger>
 
 	<output>
-		<data>dTof.root</data>
+		<data>dTof{treeIndex}.root</data>
 	</output>
 
 	<Reporter>
-		<output url="rpTof.pdf"/>
+		<output url="rpTof{treeIndex}.pdf"/>
 	</Reporter>
 
-	<TofCalibration splitMode="cell" nIterations="3" >
+	<TofCalibration splitMode="cell" nIterations="6" >
 		
 
-		<Trays min="1" max="1" />
-		<Modules min="1" max="4" />
+		<Trays min="{tray}" max="{tray}" />
+		<Modules min="{sMod}" max="{eMod}" />
 		<Cells min="1" max="6" />
 
 		<Spline tot="true" zLocal="true" zLocalPol1="false"/>
@@ -31,18 +42,13 @@
 			<zLocal variable="false" nBins="40" min="-3.2" max="3.2"/>
 		</Bins>
 
-		<Import>
-			<!--<TotParams url="params_tot_4DB.dat" />-->
-		</Import>
-
 	</TofCalibration>
 
 	<histograms>
 
 	</histograms>
-	<!-- /Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/ -->
-	<!-- url="/Users/danielbrandenburg/bnl/local/work/tofCalibration/bin/out/" -->
-	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/" maxFiles="1">
+	
+	<DataSource treeName="tof" url="{dataDir}/tree_{treeIndex}.root" >
 		<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
 	</DataSource>
 	
@@ -65,3 +71,28 @@
 
 
 </config>
+"""
+
+
+
+for iT in range( 1, 2 ) :
+	for iB in range( 1, 9 ) :
+		treeIndex = (iT-1) * 8 + iB
+		print "tree_", treeIndex
+		print "Tray ", iT, " Board ", iB
+		sMod = ( iB - 1 ) * 4 + 1;
+		eMod = ( iB ) * 4
+		context = {
+ 		"treeIndex" : treeIndex,
+ 		"tray" : iT,
+ 		"sMod" : sMod,
+ 		"eMod" : eMod,
+ 		"dataDir" : dataDir
+ 		}
+ 		fName = "tof" + `treeIndex` + ".xml"
+ 		aFile = open( fName, 'w' )
+ 		aFile.write(template.format(**context))
+ 		aFile.close()
+ 		
+    	
+
