@@ -3,6 +3,7 @@
 #include "TreeAnalyzer.h"
 #include "TofCalibrationMaker.h"
 #include "PicoSplitter.h"
+#include "SplineMaker.h"
 using namespace jdb;
 
 #include <iostream>
@@ -47,6 +48,28 @@ int main( int argc, char* argv[] ) {
 		}
 
 	}
+
+/*
+	vector<double> bins;
+	bins.push_back( 0 );
+	bins.push_back( 5 );
+	bins.push_back( 10 );
+	vector<double> vals;
+	vals.push_back( 1 );
+	vals.push_back( 2 );
+	vals.push_back( 3 );
+
+	Reporter rp( "test.pdf" );
+
+	rp.newPage();
+	TH1D * h1 = new TH1D( "h", "h", 10, 0, 10 );
+	h1->Draw();
+	h1->GetYaxis()->SetRangeUser( 0, 5 );
+	SplineMaker sm( bins, vals );
+	TGraph * graph = sm.graph( -10, 20, 1 );
+	graph->Draw();
+	rp.savePage();
+*/
 
 	return 0;
 }

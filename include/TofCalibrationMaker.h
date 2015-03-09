@@ -72,12 +72,14 @@ public:
 
 	void alignT0();
 
-	void FillTot();
-	//void slewing();
+	void fillTot();
+	void correctTot();
+	
+	void fillZLocal();
+	void correctZLocal();
 
-	void FillZLocal();
 
-	void binTot();
+	void inverseBeta();
 
 	static const int nTrays;
 	static const int nModules;
@@ -87,9 +89,14 @@ protected:
 
 	int absIndex( int tray, int module = 1, int cell = 1 );
 	int relIndex( int tray, int module = 1, int cell = 1 );
+	vector<int> fromRelIndex( int id ); // [0] = tray, [1] = module, [2] = cell
 
 	void importZParams( string pFile );
 	void importTotParams( string totFile );
+
+	void exportT0Params( string pFile );
+	void exportTotParams( string pFile );
+	void exportZParams( string pFile );
 
 	double expectedTof( double length, double p ){
 		return TMath::Sqrt( length*length / (cLight*cLight) * ( 1 + mPi*mPi / (p*p) ) );
@@ -98,6 +105,14 @@ protected:
 	bool keepEvent();
 	bool keepTrack( int iHit );
 
+	void makeBins( string var, int nBins, double min, double max );
+
+
+	/**
+	 * Reports
+	 */
+	void reportTot();
+	void reportZLocal();
 	
 	
 };
