@@ -64,8 +64,10 @@ protected:
 	const double cLight; //= 29.9792458 cm / ns
 	const double mPi; // pi mass = 0.13957 in GeV / c^2
 
+	int jobId;
+
 public:
-	TofCalibrationMaker( XmlConfig * config, string np, string fileList ="", string jobPrefix = "" );
+	TofCalibrationMaker( XmlConfig * config, string np, int jobId = -1, string fileList ="", string jobPrefix = "" );
 	~TofCalibrationMaker();
 
 	void make();

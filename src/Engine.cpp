@@ -8,6 +8,7 @@ using namespace jdb;
 
 #include <iostream>
 #include <exception>
+#include <cstdlib>
 
 int main( int argc, char* argv[] ) {
 
@@ -24,9 +25,11 @@ int main( int argc, char* argv[] ) {
 			// parallel job running with examples of
 			// argv[ 2 ] = fileList.lis
 			// argv[ 3 ] = jobPrefix_ 
-			if ( argc >= 4){
-				fileList = (string) argv[ 2 ];
-				jobPrefix = (string) argv[ 3 ];
+			int jobId = -1;
+			if ( argc >= 5){
+				jobId = atoi(argv[ 2 ]);
+				fileList = (string) argv[ 3 ];
+				jobPrefix = (string) argv[ 4 ];
 			}
 			
 			if ( "DataSource" == config[ "job" ] ){
@@ -35,7 +38,7 @@ int main( int argc, char* argv[] ) {
 				ta = new TreeAnalyzer( &config, "" );
 				ta->make();
 			} else if ( "calibrateTof" == config[ "job" ] ) {
-				TofCalibrationMaker tcm( &config, "" );
+				TofCalibrationMaker tcm( &config, "", jobId, fileList, jobPrefix );
 				tcm.make();
 
 			} else if ( "splitPicos" == config[ "job" ] ) {

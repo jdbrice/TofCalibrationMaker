@@ -14,7 +14,7 @@ const int TofCalibrationMaker::nCells = 6;
  * Constructor
  * sets up the data source, config, logger
  */
-TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, string fileList, string jobPrefix )
+TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, int jobId, string fileList, string jobPrefix )
     : cLight(29.9792458 /* [cm/ns] */), mPi( 0.13957 /* [GeV/c^2] */ )
 {
 
@@ -43,8 +43,10 @@ TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, string 
      * Sets up the input, should switch seemlessly between chain only 
      * and a DataSource 
      */
-    if ( cfg->exists( np+"DataSource" ) ){
+    if ( cfg->exists( np+"DataSource" ) && jobId <= 0 ){
     	ds = unique_ptr<DataSource>(new DataSource( cfg, np + "DataSource", fileList ) );
+    } if ( cfg->exists( np+"DataSource" ) && jobId >= 1 ){
+        ds = unique_ptr<DataSource>(new DataSource( cfg, np + "DataSource", cfg->getString( np + "DataSource:url") + ts(jobId)+".root" ) );
     } else {
     	logger->error(__FUNCTION__) << "No DataSource given " << endl;
     }
@@ -59,6 +61,18 @@ TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, string 
     logger->info(__FUNCTION__) << "Tray Range " << trayRange->toString() << endl;
     logger->info(__FUNCTION__) << "Module Range " << moduleRange->toString() << endl;
     logger->info(__FUNCTION__) << "Cell Range " << cellRange->toString() << endl;
+
+    if ( jobId >= 1  ){
+        trayRange->min = (int)(jobId / 8) + 1;
+        trayRange->max = (int)(jobId / 8) + 1;
+        int iB = jobId - ( trayRange->min - 1 ) * 8;
+        
+        moduleRange->min = ( iB - 1 ) * 4 + 1;
+        moduleRange->max = ( iB ) * 4;
+
+        cellRange->min = 1;
+        cellRange->max = 6;
+    }
 
     int nTraysToProcess = trayRange->max - trayRange->min + 1;
     int nModsToProcess = moduleRange->max - moduleRange->min + 1;
@@ -158,7 +172,7 @@ void TofCalibrationMaker::make(){
     alignT0();
     inverseBeta();
 
-    string eName = "t_" + ts( (int)trayRange->min ) + "_" + ts((int)trayRange->max) +
+    string eName =  "t_" + ts( (int)trayRange->min ) + "_" + ts((int)trayRange->max) +
                     "m_" + ts( (int)moduleRange->min ) + "_" + ts((int)moduleRange->max) +
                     "c_" + ts( (int)cellRange->min ) + "_" + ts((int)cellRange->max);
     exportT0Params( eName + "__t0.dat" );
@@ -984,12 +998,14 @@ void TofCalibrationMaker::exportTotParams( string pFile ) {
 
     ofstream params( pFile.c_str() );
 
-    if ( "cell" == splitMode )
-       params << (nTrays * nModules * nCells) << endl;
-    else if ( "module" == splitMode )
-       params << (nTrays * nModules ) << endl;
-    else if ( "board" == splitMode )
-       params << (nTrays * 8) << endl;
+    if ( trayRange->min == 1 ){
+        if ( "cell" == splitMode )
+           params << (nTrays * nModules * nCells) << endl;
+        else if ( "module" == splitMode )
+           params << (nTrays * nModules ) << endl;
+        else if ( "board" == splitMode )
+           params << (nTrays * 8) << endl;
+    }
     for ( int iTray = 1; iTray <= nTrays; iTray++ ){
         for ( int iMod = 1; iMod <= nModules; iMod++ ){
             for ( int iCell = 1; iCell <= nCells; iCell++ ){
@@ -1019,12 +1035,14 @@ void TofCalibrationMaker::exportZParams( string pFile ) {
 
     ofstream params( pFile.c_str() );
 
-    if ( "cell" == splitMode )
-       params << (nTrays * nModules * nCells) << endl;
-    else if ( "module" == splitMode )
-       params << (nTrays * nModules ) << endl;
-    else if ( "board" == splitMode )
-       params << (nTrays * 8) << endl;
+    if ( trayRange->min == 1 ){
+        if ( "cell" == splitMode )
+           params << (nTrays * nModules * nCells) << endl;
+        else if ( "module" == splitMode )
+           params << (nTrays * nModules ) << endl;
+        else if ( "board" == splitMode )
+           params << (nTrays * 8) << endl;
+    }
     for ( int iTray = 1; iTray <= nTrays; iTray++ ){
         for ( int iMod = 1; iMod <= nModules; iMod++ ){
             for ( int iCell = 1; iCell <= nCells; iCell++ ){
