@@ -1,5 +1,6 @@
 #include "TofCalibrationMaker.h"
 
+#include "ChainLoader.h"
 
 
 #include <math.h>
@@ -34,7 +35,7 @@ TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, int job
     logger->info(__FUNCTION__) << " Creating book " << config->getString( np + "output.data", "TreeAnalyzer" ) << endl;
     book = unique_ptr<HistoBook>(new HistoBook( jobPrefix + config->getString( np + "output.data", "TreeAnalyzer" ), config, "", "" ) );
     	    
-    if ( "" == jobPrefix && cfg->exists( np+"Reporter.output:url" ) ) {
+    if ( cfg->exists( np+"Reporter.output:url" ) ) {
 	    reporter = unique_ptr<Reporter>(new Reporter( cfg, np+"Reporter.", jobPrefix ) );
 	    logger->info(__FUNCTION__) << "Creating report " << config->getString( np+"Reporter.output:url" ) << endl;
     }
@@ -43,13 +44,19 @@ TofCalibrationMaker::TofCalibrationMaker( XmlConfig * config, string np, int job
      * Sets up the input, should switch seemlessly between chain only 
      * and a DataSource 
      */
-    if ( cfg->exists( np+"DataSource" ) && jobId <= 0 ){
+    /*if ( cfg->exists( np+"DataSource" ) && jobId <= 0 ){
     	ds = unique_ptr<DataSource>(new DataSource( cfg, np + "DataSource", fileList ) );
     } if ( cfg->exists( np+"DataSource" ) && jobId >= 1 ){
         ds = unique_ptr<DataSource>(new DataSource( cfg, np + "DataSource", cfg->getString( np + "DataSource:url") + ts(jobId)+".root" ) );
     } else {
     	logger->error(__FUNCTION__) << "No DataSource given " << endl;
-    }
+    }*/
+
+    string fName = cfg->getString( np + "DataSource:url") + "tree_"+ ts(jobId)+".root";
+    chain = new TChain( "tof" );
+    ChainLoader::load( chain, fName );
+
+    tuple = new TofTuple( chain );
 
 
 
@@ -127,23 +134,27 @@ TofCalibrationMaker::~TofCalibrationMaker(){
 
 
 bool TofCalibrationMaker::keepEvent( ){
-    if ( 0 >= ds->getInt( "numberOfVpdEast" ) || 0 >= ds->getInt( "numberOfVpdWest" ) ) 
+
+    if ( 0 >= tuple->numberOfVpdEast || 0 >= tuple->numberOfVpdWest ) 
         return false;
-    if ( ds->get( "vR" ) > 1.0 ) 
+    double vX = tuple->vertexX;
+    double vY = tuple->vertexY;
+    double vR = TMath::Sqrt( vX * vX + vY * vY  );
+    if ( vR > 1.0 ) 
         return false;
-    if ( TMath::Abs( ds->get( "vpdVz" )  - ds->get("vertexZ") ) > 6.0 ) 
+    if ( TMath::Abs( tuple->vpdVz  - tuple->vertexZ ) > 6.0 ) 
         return false;
     return true;
 }
 bool TofCalibrationMaker::keepTrack( int iHit ){
-    double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
-    double nSigPi = ds->get("nSigPi", iHit );
+    double p = tuple->pt[ iHit ] * TMath::CosH( tuple->eta[ iHit ] );
+    double nSigPi = tuple->nSigPi[ iHit ];
 
     if ( 0.3 > p || 0.6 < p ) 
         return false;
     if ( nSigPi > 2.0 ) 
         return false;
-    if ( 25 > ds->getInt( "nHitsFit", iHit ) ) 
+    if ( 25 > tuple->nHitsFit[ iHit ] ) 
         return false;
     return true;
 }
@@ -183,7 +194,7 @@ void TofCalibrationMaker::make(){
 
 void TofCalibrationMaker::fillTot(  ){
 
-    if ( !ds ){
+    if ( !chain ){
         logger->error(__FUNCTION__) << "Invalid DataSource " << endl;
         return;
     }
@@ -208,7 +219,7 @@ void TofCalibrationMaker::fillTot(  ){
     TaskTimer t;
     t.start();
 
-    Int_t nEvents = (Int_t)ds->getEntries();
+    Int_t nEvents = (Int_t)chain->GetEntries();
     
     nEventsToProcess = cfg->getInt( nodePath+"DataSource:maxEvents", nEvents );
 
@@ -221,7 +232,7 @@ void TofCalibrationMaker::fillTot(  ){
     logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
-        ds->getEntry(i);
+        chain->GetEntry(i);
 
         tp.showProgress( i );
 
@@ -231,26 +242,26 @@ void TofCalibrationMaker::fillTot(  ){
         if ( !keepEvent() )
             continue;
 
-        int nTofHits = ds->getInt( "nTofHits" );
+        int nTofHits = tuple->nTofHits;
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
             if ( !keepTrack( iHit ) )
                 continue;
 
-            int tray = ds->getInt( "tray", iHit );
-            int module = ds->getInt( "module", iHit );
-            int cell = ds->getInt( "cell", iHit );
+            int tray = tuple->tray[ iHit ];
+            int module = tuple->module[ iHit ];
+            int cell = tuple->cell[ iHit ];
             int id = relIndex( tray, module, cell );
 
             if ( id < 0 )
                 continue;
 
-            const double tLength = ds->get( "length", iHit );
-            const double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+            const double tLength = tuple->length[ iHit ];
+            const double p = tuple->pt[ iHit ] * TMath::CosH( tuple->eta[ iHit ] );
             const double tofExp = expectedTof( tLength, p );
-            const double tot = ds->get( "tot", iHit );
+            const double tot = tuple->tot[ iHit ];;
             
-            double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
+            double rawTof = tuple->leTime[ iHit ] - tuple->tStart;
             double corrTof = corrections[id]->tof( rawTof, tot, 0 ); // all corrections
             double tof = corrections[id]->tofForTot( rawTof, 0 ); // aplly all corrections except tot
             
@@ -261,8 +272,8 @@ void TofCalibrationMaker::fillTot(  ){
             // cut on the inverse beta curve
             if ( 0 < iteration && (iBeta > piBetaCut->Eval( p ) ) ) continue;   
 
-            book->fill( "tot_" + ts(id), ds->get( "tot", iHit ), dt );
-            book->fill( "corrTot_" + ts(id), ds->get( "tot", iHit ), (corrTof - tofExp) );
+            book->fill( "tot_" + ts(id), tuple->tot[ iHit ], dt );
+            book->fill( "corrTot_" + ts(id), tuple->tot[ iHit ], (corrTof - tofExp) );
 
         } // loop on tofHits
         
@@ -273,7 +284,7 @@ void TofCalibrationMaker::fillTot(  ){
 }
 void TofCalibrationMaker::fillZLocal(  ){
 
-    if ( !ds ){
+    if ( !chain ){
         logger->error(__FUNCTION__) << "Invalid DataSource " << endl;
         return;
     }
@@ -298,7 +309,7 @@ void TofCalibrationMaker::fillZLocal(  ){
     TaskTimer t;
     t.start();
 
-    Int_t nEvents = (Int_t)ds->getEntries();
+    Int_t nEvents = (Int_t)chain->GetEntries();
     
     nEventsToProcess = cfg->getInt( nodePath+"DataSource:maxEvents", nEvents );
 
@@ -311,7 +322,7 @@ void TofCalibrationMaker::fillZLocal(  ){
     logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
-        ds->getEntry(i);
+        chain->GetEntry(i);
 
         tp.showProgress( i );
 
@@ -321,27 +332,27 @@ void TofCalibrationMaker::fillZLocal(  ){
         if ( !keepEvent() )
             continue;
 
-        int nTofHits = ds->getInt( "nTofHits" );
+        int nTofHits = tuple->nTofHits;
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
             if ( !keepTrack( iHit ) )
                 continue;
 
-            int tray = ds->getInt( "tray", iHit );
-            int module = ds->getInt( "module", iHit );
-            int cell = ds->getInt( "cell", iHit );
+            int tray = tuple->tray[ iHit ];
+            int module = tuple->module[ iHit ];
+            int cell = tuple->cell[ iHit ];
             int id = relIndex( tray, module, cell );
 
             if ( id < 0 )
                 continue;
 
-            const double zLocal = ds->get( "zLocal", iHit  );
-            const double tLength = ds->get( "length", iHit );
-            const double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+            const double zLocal = tuple->zLocal[ iHit ];
+            const double tLength = tuple->length[ iHit ];
+            const double p = tuple->pt[ iHit ] * TMath::CosH( tuple->eta[ iHit ] );
             const double tofExp = expectedTof( tLength, p );
-            const double tot = ds->get( "tot", iHit );
+            const double tot = tuple->tot[ iHit ];;
             
-            const double rawTof   = ds->get( "leTime", iHit ) - ds->get( "tStart" );
+            double rawTof = tuple->leTime[ iHit ] - tuple->tStart;
             double corrTof  = corrections[id]->tof( rawTof, tot, zLocal ); // all corrections
             double tof      = corrections[id]->tofForZ( rawTof, tot ); // aplly all corrections except tot
             
@@ -440,7 +451,7 @@ void TofCalibrationMaker::correctTot(  ){
 
 void TofCalibrationMaker::alignT0(){
 
-    if ( !ds ){
+    if ( !chain ){
         logger->error(__FUNCTION__) << "Invalid DataSource " << endl;
         return;
     }
@@ -466,7 +477,7 @@ void TofCalibrationMaker::alignT0(){
     TaskTimer t;
     t.start();
 
-    Int_t nEvents = (Int_t)ds->getEntries();
+    Int_t nEvents = (Int_t)chain->GetEntries();
     
     nEventsToProcess = cfg->getInt( nodePath+"DataSource:maxEvents", nEvents );
 
@@ -479,7 +490,7 @@ void TofCalibrationMaker::alignT0(){
     logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
-        ds->getEntry(i);
+        chain->GetEntry(i);
 
         tp.showProgress( i );
 
@@ -490,30 +501,28 @@ void TofCalibrationMaker::alignT0(){
         if ( !keepEvent() )
             continue;
 
-        int nTofHits = ds->getInt( "nTofHits" );
+        int nTofHits = tuple->nTofHits;
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
             if ( !keepTrack( iHit ) )
                 continue;
 
             //cout << " ( " << ds->getInt( "tray", iHit ) << ", " << ds->getInt( "module", iHit ) << ", " << ds->getInt( "cell", iHit ) << " ) " << endl;
-            int tray = ds->getInt( "tray", iHit );
-            int module = ds->getInt( "module", iHit );
-            int cell = ds->getInt( "cell", iHit );
+            int tray = tuple->tray[ iHit ];
+            int module = tuple->module[ iHit ];
+            int cell = tuple->cell[ iHit ];
             int id = relIndex( tray, module, cell );
 
             if ( id < 0 )
                 continue;
 
-
-
-            const double zLocal     = ds->get( "zLocal", iHit );
-            const double tLength    = ds->get( "length", iHit );
-            const double p          = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
-            const double tofExp     = expectedTof( tLength, p );
-            const double tot        = ds->get( "tot", iHit );
+            const double zLocal = tuple->zLocal[ iHit ];
+            const double tLength = tuple->length[ iHit ];
+            const double p = tuple->pt[ iHit ] * TMath::CosH( tuple->eta[ iHit ] );
+            const double tofExp = expectedTof( tLength, p );
+            const double tot = tuple->tot[ iHit ];;
             
-            const double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
+            double rawTof = tuple->leTime[ iHit ] - tuple->tStart;
             const double corrTof = corrections[id]->tof( rawTof, tot, 0 ); // all corrections
             const double iBeta = ( corrTof / tLength ) * cLight;
     
@@ -561,7 +570,7 @@ void TofCalibrationMaker::alignT0(){
 
 void TofCalibrationMaker::inverseBeta(  ){
 
-    if ( !ds ){
+    if ( !chain ){
         logger->error(__FUNCTION__) << "Invalid DataSource " << endl;
         return;
     }
@@ -582,7 +591,7 @@ void TofCalibrationMaker::inverseBeta(  ){
     TaskTimer t;
     t.start();
 
-    Int_t nEvents = (Int_t)ds->getEntries();
+    Int_t nEvents = (Int_t)chain->GetEntries();
     nEventsToProcess = cfg->getInt( nodePath+"DataSource:maxEvents", nEvents );
 
     if ( nEventsToProcess > nEvents )
@@ -594,7 +603,7 @@ void TofCalibrationMaker::inverseBeta(  ){
     logger->info( __FUNCTION__ ) << "Iteration : " << iteration << endl;
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
-        ds->getEntry(i);
+        chain->GetEntry(i);
 
         tp.showProgress( i );
 
@@ -604,24 +613,24 @@ void TofCalibrationMaker::inverseBeta(  ){
         if ( !keepEvent() )
             continue;
 
-        int nTofHits = ds->getInt( "nTofHits" );
+        int nTofHits = tuple->nTofHits;
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
-            int tray = ds->getInt( "tray", iHit );
-            int module = ds->getInt( "module", iHit );
-            int cell = ds->getInt( "cell", iHit );
+            int tray = tuple->tray[ iHit ];
+            int module = tuple->module[ iHit ];
+            int cell = tuple->cell[ iHit ];
             int id = relIndex( tray, module, cell );
 
             if ( id < 0 )
                 continue;
 
-            const double zLocal = ds->get( "zLocal", iHit );
-            const double tLength = ds->get( "length", iHit );
-            const double p = ds->get( "pt", iHit ) * TMath::CosH( ds->get( "eta", iHit ) );
+            const double zLocal = tuple->zLocal[ iHit ];
+            const double tLength = tuple->length[ iHit ];
+            const double p = tuple->pt[ iHit ] * TMath::CosH( tuple->eta[ iHit ] );
             const double tofExp = expectedTof( tLength, p );
-            const double tot = ds->get( "tot", iHit );
+            const double tot = tuple->tot[ iHit ];;
             
-            double rawTof = ds->get( "leTime", iHit ) - ds->get( "tStart" );
+            double rawTof = tuple->leTime[ iHit ] - tuple->tStart;
             double corrTof = corrections[id]->tof( rawTof, tot, zLocal ); // all corrections
             
             double iBeta = (corrTof / tLength )*cLight;
@@ -638,6 +647,7 @@ void TofCalibrationMaker::inverseBeta(  ){
     set( "x", "p [GeV]" )->set( "y", "#beta^{-1}")->
     set( "draw", "colz" )->set( "logz", 1 )->draw();
     reporter->savePage();
+    logger->info(__FUNCTION__) << "Report Written" << endl;
 }
 
 
@@ -794,7 +804,7 @@ void TofCalibrationMaker::makeBins( string var, int nBins, double min, double ma
     TaskTimer t;
     t.start();
 
-    Int_t nEvents = (Int_t)ds->getEntries();
+    Int_t nEvents = (Int_t)chain->GetEntries();
     
     nEventsToProcess = cfg->getInt( nodePath+"DataSource:maxEvents", nEvents );
 
@@ -807,7 +817,7 @@ void TofCalibrationMaker::makeBins( string var, int nBins, double min, double ma
 
     // loop over all events
     for(Int_t i=0; i<nEventsToProcess; i++) {
-        ds->getEntry(i);
+        chain->GetEntry(i);
 
         tp.showProgress( i );
 
@@ -818,24 +828,29 @@ void TofCalibrationMaker::makeBins( string var, int nBins, double min, double ma
         if ( !keepEvent() )
             continue;
 
-        int nTofHits = ds->getInt( "nTofHits" );
+        int nTofHits = tuple->nTofHits;
         for ( int iHit = 0; iHit < nTofHits; iHit++ ){
 
             if ( !keepTrack( iHit ) )
                 continue;
 
             //cout << " ( " << ds->getInt( "tray", iHit ) << ", " << ds->getInt( "module", iHit ) << ", " << ds->getInt( "cell", iHit ) << " ) " << endl;
-            int tray = ds->getInt( "tray", iHit );
-            int module = ds->getInt( "module", iHit );
-            int cell = ds->getInt( "cell", iHit );
+            int tray = tuple->tray[ iHit ];
+            int module = tuple->module[ iHit ];
+            int cell = tuple->cell[ iHit ];
             int id = relIndex( tray, module, cell );
 
             if ( id < 0 )
                 continue;
 
-            double val = ds->get( var, iHit );
 
-            if ( val < min ||val > max )
+            double val = 0;
+            if ( "tot" == var ) 
+                val = tuple->tot[ iHit ];
+            if ( "zLocal" == var ) 
+                val = tuple->zLocal[ iHit ];
+
+            if ( val < min || val > max )
                 continue;
 
             vals[ id ].push_back( val );

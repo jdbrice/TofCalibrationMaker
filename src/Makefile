@@ -4,7 +4,7 @@ project = calib
 # source suffix
 source = .cpp 
 # object files to make
-objects = Engine.o TofCalibrationMaker.o PicoSplitter.o SplineMaker.o
+objects = Engine.o TofCalibrationMaker.o PicoSplitter.o SplineMaker.o TofTuple.o
 
 sources = $(wildcard *.cpp)
 headers = $(wildcard ../include/*.h)

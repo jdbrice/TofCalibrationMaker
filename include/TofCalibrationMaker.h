@@ -1,7 +1,7 @@
 #ifndef TOF_CALIBRATION_MAKER
 #define TOF_CALIBRATION_MAKER
 
-
+#include "TofTuple.h"
 /**
  * JDB LIB
  */
@@ -44,7 +44,9 @@ protected:
 
 	unique_ptr<Logger> logger;
 
-	unique_ptr<DataSource> ds;
+	TChain * chain;
+	TofTuple * tuple;
+	//unique_ptr<DataSource> ds;
 	int nEventsToProcess;
 
 	unique_ptr<HistoBook> book;
