@@ -165,6 +165,7 @@ void TofCalibrationMaker::make(){
 
     int nIterations = cfg->getInt( "TofCalibration:nIterations", 3 );
     for ( int i = 0; i < nIterations; i++ ){
+        cout << "ITERATION " << i << endl;
         inverseBeta();   
         
         alignT0();
