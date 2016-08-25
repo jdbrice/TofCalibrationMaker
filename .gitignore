@@ -1,5 +1,6 @@
 #Remove bulky root files
 *.root
+*.pdf
 
 # Remove data files in the script folder used for testing 
 /script/*

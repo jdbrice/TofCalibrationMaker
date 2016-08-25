@@ -42,7 +42,7 @@
 	</histograms>
 	<!-- /Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/ -->
 	<!-- url="/Users/danielbrandenburg/bnl/local/work/tofCalibration/bin/out/" -->
-	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/split/splitByBoard/tree_1.root" maxEvents="100000">
+	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/split/splitByBoard/" >
 		<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
 	</DataSource>
 	
