@@ -3,28 +3,36 @@
 <!-- A root node is required -->
 <!--  It can be anything <root></root>, it just has to exist -->
 <config>
-	<job>splitPicos</job>
 
-	<Logger>
-		<logLevel>debug</logLevel>
-	</Logger>
+	<Task name="splitter" type="TofPicoSplitter" config="" nodePath="TofPicoSplitter" />
+	<Logger globalLogLevel="all" />
 
-	<output path="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/slew/split/" />
+	<TofPicoSplitter>
+		<Logger globalLogLevel="all" />		
 
-	<!-- tray, board, module, cell -->
-	<SplitBy>board</SplitBy>
+		<output path="/data/star1/jdb12/Run16/calib/split/" />
 
-	<Trays min="1" max="1" />
+		
+		<SplitBy>tray</SplitBy>
 
-	<DataSource treeName="tof" url="/Users/danielbrandenburg/bnl/local/data/Run14/AuAu200/slew/" maxFiles="-1">
-		<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
-	</DataSource>
+		<Trays min="1" max="120" />
 
-	<histograms>
-		<Histo name="trayHits" title="Tray Hits" widthX="1" minX="-0.5" maxX="119.5" />
-		<Histo name="ids" title="ids" nBinsX="1000" minX="-1" maxX="999" />
-		<Histo name="events" title="events" nBinsX="10" minX="0" maxX="10" />
-	</histograms>
+		<input>
+			<dst treeName="tof" url="/data/star1/jdb12/Run16/calib/totCalib2/" /> 
+		</input>
+		<DataSource >
+			<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
+		</DataSource>
+		<EventLoop progress="true" />
+
+		<histos>
+			<Histo name="trayHits" title="Tray Hits" width_x="1" min_x="-0.5" max_x="119.5" />
+			<Histo name="ids" title="ids" nBins_x="1000" min_x="-1" max_x="999" />
+			<Histo name="events" title="events" nBins_x="10" min_x="0" max_x="10" />
+		</histos>
+	</TofPicoSplitter>
+
+	
 
 
 </config>

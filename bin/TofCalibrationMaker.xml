@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- A root node is required -->
+<!--  It can be anything <root></root>, it just has to exist -->
+<config>	
+
+	<Task name="calib" type="TofCalibrationMaker" config="" nodePath="TofCalibrationMaker" />
+	<Logger globalLogLevel="none" />
+
+	<TofCalibrationMaker splitMode="cell" nIterations="3" >
+		<Logger globalLogLevel="info" />
+
+		<input>
+			<dst treeName="tof" url="/data/star1/jdb12/Run16/calib/split/list.lis" splitBy="1" nEvents="100000000"/> 
+		</input>
+		<DataSource maxEvents="100000000">
+			<EvaluatedLeaf name="vR" value="TMath::Sqrt( [0]*[0] + [1]*[1] )" p0="vertexX" p1="vertexY" />
+		</DataSource>
+
+		<output>
+			<TFile url="tofCalib_tray_{jobIndex}.root" />
+		</output>
+
+		<Trays min="6" max="6" />
+		<Modules min="1" max="32" />
+		<Cells min="1" max="6" />
+
+		<Spline tot="true" zLocal="true" zLocalPol1="false"/>
+
+
+		<Bins>
+			<tot variable="true" nBins="40" min="10" max="30"/>
+			<zLocal variable="false" nBins="40" min="-3.2" max="3.2"/>
+		</Bins>
+
+		<TotParams url="" />
+		<zParams url="" />
+
+
+		<!-- <Reporter>
+			<output url="rpzLocal.pdf"/>
+		</Reporter> -->
+
+		<histograms>
+			<Histo name="traysHit" title="Trays Hit" bins_x="b.trays" />
+			<Histo name="modulesHit" title="modules Hit" bins_x="b.modules" />
+			<Histo name="cellsHit" title="cells Hit" bins_x="b.cells" />
+			<Histo name="iBeta" title="invBeta" bins_x="b.p" bins_y="b.iBeta" />
+			<Histo name="dtVsZ" title="dt vs. Z" bins_x="b.z" bins_y="b.dt" />
+			<Histo name="dt" title="dt" bins_x="b.dt" />
+			<Histo name="dtVsTot" title="dt" bins_x="b.tot" bins_y="b.dt" />
+		</histograms>
+
+	</TofCalibrationMaker>
+
+
+	<b>
+		<trays width="1.0" min="0.5" max="120.5" />
+		<modules width="1.0" min="0.5" max="32.5" />
+		<cells width="1.0" min="0.5" max="6.5" />
+		<p width="0.01" min="0" max="4.1" />
+		<iBetaFirst width="0.05" min="-5" max="5.0" />
+		<iBeta width="0.005" min=".75" max="3.0" />
+		<dtWide width="1" min="-250" max="250" />
+		<dt width=".01" min="-2.50" max="2.50" />
+		<dtZ width=".001" min="-0.50" max="0.50" />
+		<z width="0.1" min="-3.0" max="3.0" />
+		<tot width=".5" min="10" max="30" />
+
+
+	</b>
+
+	
+</config>

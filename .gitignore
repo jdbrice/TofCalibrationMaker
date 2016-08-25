@@ -22,3 +22,8 @@
 # but keep the sample config
 !/bin/config.xml
 /bin/final
+
+
+/bin/configs
+/bin/logs
+/bin/output
